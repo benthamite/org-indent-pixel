@@ -51,6 +51,24 @@
   :group 'org-indent
   :prefix "org-indent-pixel-")
 
+(defun org-indent-pixel--string-pixel-width (string)
+  "Like `string-pixel-width' but with the calling buffer's face remapping.
+`string-pixel-width' uses an internal work buffer that lacks the
+calling buffer's `face-remapping-alist', so faces that inherit from
+`default' resolve to the monospace font instead of the variable-pitch
+font of `buffer-face-mode'."
+  (if (zerop (length string))
+      0
+    (let ((remapping face-remapping-alist))
+      (with-current-buffer (get-buffer-create " *org-indent-pixel*")
+        (setq face-remapping-alist remapping
+              line-prefix nil
+              wrap-prefix nil)
+        (setq-local display-line-numbers nil)
+        (delete-region (point-min) (point-max))
+        (insert (propertize string 'line-prefix nil 'wrap-prefix nil))
+        (car (buffer-text-pixel-size nil nil t))))))
+
 (defun org-indent-pixel--fix-line (_level indentation &optional heading)
   "Fix `wrap-prefix' on the current line.
 Replace the space-based `wrap-prefix' set by
@@ -79,22 +97,17 @@ When HEADING is non-nil the line is a heading and is skipped."
                  (s (buffer-substring bol body-start))
                  (len (length s)))
             (when (> len 0)
-              (let ((face (or (bound-and-true-p buffer-face-mode-face)
-                              'variable-pitch))
-                    (lp (copy-sequence lp)))
-                (remove-text-properties
-                 0 len '(line-prefix nil wrap-prefix nil fontified nil) s)
-                (add-face-text-property 0 len face nil s)
-                (add-face-text-property 0 (length lp) face nil lp)
-                (let* ((text-px (string-pixel-width s))
-                       (lp-px (string-pixel-width lp))
-                       (total-px (+ lp-px text-px)))
-                  (when (> total-px 0)
-                    (put-text-property
-                     bol (min next-bol (point-max))
-                     'wrap-prefix
-                     (propertize " " 'display
-                                 `(space :width (,total-px))))))))))))))
+              (remove-text-properties
+               0 len '(line-prefix nil wrap-prefix nil fontified nil) s)
+              (let* ((text-px (org-indent-pixel--string-pixel-width s))
+                     (lp-px (org-indent-pixel--string-pixel-width lp))
+                     (total-px (+ lp-px text-px)))
+                (when (> total-px 0)
+                  (put-text-property
+                   bol (min next-bol (point-max))
+                   'wrap-prefix
+                   (propertize " " 'display
+                               `(space :width (,total-px)))))))))))))
 
 ;;;###autoload
 (define-minor-mode org-indent-pixel-mode
