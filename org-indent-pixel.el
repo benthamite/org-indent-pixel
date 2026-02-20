@@ -52,14 +52,14 @@
   :prefix "org-indent-pixel-")
 
 (defun org-indent-pixel--fix-line (_level indentation &optional heading)
-  "Fix wrap-prefix on the line just processed by `org-indent-set-line-properties'.
-Measure the actual buffer content (including display properties from
-org-modern) in the variable-pitch font, then replace the space-based
-wrap-prefix with a pixel-accurate specification.
+  "Fix `wrap-prefix' on the current line.
+Replace the space-based `wrap-prefix' set by
+`org-indent-set-line-properties' with a pixel-accurate specification.
 
 _LEVEL is ignored.  INDENTATION is the target column for the body text.
 When HEADING is non-nil the line is a heading and is skipped."
   (when (and (bound-and-true-p org-indent-pixel-mode)
+             (bound-and-true-p buffer-face-mode)
              (not heading)
              (> indentation 0))
     (save-excursion
@@ -104,7 +104,10 @@ When enabled, replace the space-based `wrap-prefix' from
 continuation lines align correctly in variable-pitch fonts."
   :lighter nil
   (if org-indent-pixel-mode
-      (progn
+      (if (not (display-graphic-p))
+          (progn
+            (setq org-indent-pixel-mode nil)
+            (message "org-indent-pixel-mode requires a graphical display"))
         (advice-add 'org-indent-set-line-properties
                     :after #'org-indent-pixel--fix-line)
         (when org-indent-mode
@@ -117,7 +120,8 @@ continuation lines align correctly in variable-pitch fonts."
 (defun org-indent-pixel--maybe-activate ()
   "Activate `org-indent-pixel-mode' when conditions are met.
 Intended for use in `org-mode-hook' and `buffer-face-mode-hook'."
-  (when (and org-indent-mode buffer-face-mode
+  (when (and (bound-and-true-p org-indent-mode)
+             (bound-and-true-p buffer-face-mode)
              (not (bound-and-true-p org-indent-pixel-mode)))
     (org-indent-pixel-mode 1)))
 
@@ -127,8 +131,9 @@ Intended for use in `org-mode-hook' and `buffer-face-mode-hook'."
 Call this once in your init file to enable `org-indent-pixel-mode'
 in all Org buffers that use both `org-indent-mode' and
 `buffer-face-mode'."
-  (add-hook 'org-mode-hook #'org-indent-pixel--maybe-activate 90)
-  (add-hook 'buffer-face-mode-hook #'org-indent-pixel--maybe-activate))
+  (when (display-graphic-p)
+    (add-hook 'org-mode-hook #'org-indent-pixel--maybe-activate 90)
+    (add-hook 'buffer-face-mode-hook #'org-indent-pixel--maybe-activate)))
 
 (provide 'org-indent-pixel)
 ;;; org-indent-pixel.el ends here
