@@ -79,21 +79,22 @@ When HEADING is non-nil the line is a heading and is skipped."
                  (s (buffer-substring bol body-start))
                  (len (length s)))
             (when (> len 0)
-              (remove-text-properties
-               0 len '(line-prefix nil wrap-prefix nil fontified nil) s)
-              (add-face-text-property
-               0 len (or (bound-and-true-p buffer-face-mode-face)
-                         'variable-pitch)
-               nil s)
-              (let* ((text-px (string-pixel-width s))
-                     (lp-px (string-pixel-width lp))
-                     (total-px (+ lp-px text-px)))
-                (when (> total-px 0)
-                  (put-text-property
-                   bol (min next-bol (point-max))
-                   'wrap-prefix
-                   (propertize " " 'display
-                               `(space :width (,total-px)))))))))))))
+              (let ((face (or (bound-and-true-p buffer-face-mode-face)
+                              'variable-pitch))
+                    (lp (copy-sequence lp)))
+                (remove-text-properties
+                 0 len '(line-prefix nil wrap-prefix nil fontified nil) s)
+                (add-face-text-property 0 len face nil s)
+                (add-face-text-property 0 (length lp) face nil lp)
+                (let* ((text-px (string-pixel-width s))
+                       (lp-px (string-pixel-width lp))
+                       (total-px (+ lp-px text-px)))
+                  (when (> total-px 0)
+                    (put-text-property
+                     bol (min next-bol (point-max))
+                     'wrap-prefix
+                     (propertize " " 'display
+                                 `(space :width (,total-px))))))))))))))
 
 ;;;###autoload
 (define-minor-mode org-indent-pixel-mode
