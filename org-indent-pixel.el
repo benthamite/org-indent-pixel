@@ -61,8 +61,8 @@ font of `buffer-face-mode'."
       0
     (let ((remapping face-remapping-alist))
       (with-current-buffer (get-buffer-create " *org-indent-pixel*")
-        (setq face-remapping-alist remapping
-              line-prefix nil
+        (setq-local face-remapping-alist remapping)
+        (setq line-prefix nil
               wrap-prefix nil)
         (setq-local display-line-numbers nil)
         (delete-region (point-min) (point-max))
