@@ -1,0 +1,222 @@
+#+title: org-indent-pixel: Pixel-accurate wrap-prefix for variable-pitch Org buffers
+#+author: Pablo Stafforini
+#+email: pablo@stafforini.com
+#+language: en
+#+options: ':t toc:t author:t email:t num:t
+#+startup: content
+#+export_file_name: org-indent-pixel.info
+#+texinfo_filename: org-indent-pixel.info
+#+texinfo_dir_category: Emacs misc features
+#+texinfo_dir_title: Org Indent Pixel: (org-indent-pixel)
+#+texinfo_dir_desc: Pixel-accurate wrap-prefix for variable-pitch Org buffers
+
+This manual describes the features and customization options for the Emacs Lisp file =org-indent-pixel.el=.
+
+* Overview
+:PROPERTIES:
+:CUSTOM_ID: h:overview
+:END:
+
+=org-indent-pixel.el= fixes a visual alignment problem that arises when using variable-pitch fonts in Org mode buffers with indentation enabled. It requires GNU Emacs 29.1 or later and Org 9.6 or later.
+
+** The problem
+:PROPERTIES:
+:CUSTOM_ID: h:the-problem
+:END:
+
+When ~org-indent-mode~ and ~buffer-face-mode~ (or its alias ~variable-pitch-mode~) are both active, wrapped lines in nested list items become progressively misaligned. The deeper the nesting, the worse the misalignment:
+
+#+begin_example
+- Level 1 text that wraps to the next
+  line aligns correctly (small error)
+  - Level 2 text that wraps starts to
+     drift rightward
+    - Level 3 text wraps even further
+        off from where it should be
+#+end_example
+
+This happens because ~org-indent-mode~ constructs its ~wrap-prefix~ text property from fixed-width space characters. In a monospaced font every space has the same width, so /N/ spaces produce exactly the right indentation. In a variable-pitch font, however, spaces are typically narrower than the average character, so /N/ spaces fall short of the intended column. The error is proportional to the indentation depth, which is why deeply nested items look worse.
+
+** The fix
+:PROPERTIES:
+:CUSTOM_ID: h:the-fix
+:END:
+
+~org-indent-pixel-mode~ installs =:after= advice on the internal function ~org-indent-set-line-properties~. For each non-heading line that carries indentation, the advice:
+
+1. Extracts the buffer text from the beginning of the line up to the body start column.
+2. Measures the pixel width of that text in the buffer's variable-pitch font, including any display properties set by packages such as [[https://github.com/minad/org-modern][org-modern]] (e.g., bullet character replacements).
+3. Measures the pixel width of the ~line-prefix~ string.
+4. Replaces the space-based ~wrap-prefix~ with a pixel-accurate specification of the form ~(space :width (N))~, where /N/ is the sum of the two pixel measurements.
+
+The result is that wrapped continuation lines align exactly with the body text above, regardless of the font in use.
+
+** Compatibility notes
+:PROPERTIES:
+:CUSTOM_ID: h:compatibility-notes
+:END:
+
+The mode requires a graphical display (GUI Emacs). In a terminal, all characters occupy the same width, so the built-in space-based prefix from ~org-indent-mode~ is already correct. If you attempt to enable ~org-indent-pixel-mode~ in a terminal frame, it will refuse to activate and display a message explaining why.
+
+Users of [[https://gitlab.com/jabranham/mixed-pitch][mixed-pitch]] typically do *not* need this package. ~mixed-pitch~ applies variable-pitch faces to individual text runs while leaving structural elements (such as leading whitespace and indentation) in a fixed-pitch face. Because the indentation area stays monospaced, the space-based prefix from ~org-indent-mode~ remains accurate.
+
+* Commands
+:PROPERTIES:
+:CUSTOM_ID: h:commands
+:END:
+
+** Toggling the mode
+:PROPERTIES:
+:CUSTOM_ID: h:toggling-the-mode
+:END:
+
+#+findex: org-indent-pixel-mode
+The command ~org-indent-pixel-mode~ toggles pixel-accurate wrap-prefix correction in the current buffer. You can invoke it interactively with =M-x org-indent-pixel-mode=.
+
+When the mode is enabled, it installs global advice on ~org-indent-set-line-properties~ and immediately reprocesses all lines in the buffer to apply pixel-accurate wrap-prefix values. When the mode is disabled, it triggers ~org-indent-mode~ to reprocess all lines, restoring the original space-based prefixes.
+
+The advice is reference-counted: it is installed when the first buffer enables the mode and removed only when the last buffer disables it. This ensures that enabling the mode in multiple Org buffers simultaneously works correctly.
+
+In most cases you will not need to toggle the mode manually. Instead, use ~org-indent-pixel-setup~ to have it activated automatically ([[#h:automatic-activation][Automatic activation]]).
+
+* Functions
+:PROPERTIES:
+:CUSTOM_ID: h:functions
+:END:
+
+** Automatic activation
+:PROPERTIES:
+:CUSTOM_ID: h:automatic-activation
+:END:
+
+#+findex: org-indent-pixel-setup
+The function ~org-indent-pixel-setup~ registers hooks so that ~org-indent-pixel-mode~ is enabled automatically in any Org buffer where both ~org-indent-mode~ and ~buffer-face-mode~ are active. Call it once in your init file:
+
+#+begin_src emacs-lisp
+(org-indent-pixel-setup)
+#+end_src
+
+Internally, it adds a function to ~org-mode-hook~ (at depth 90, so it runs after ~org-indent-mode~ has been set up) and to ~buffer-face-mode-hook~. The hook function checks whether all three conditions are met---~org-mode~ derivative, ~org-indent-mode~ active, and ~buffer-face-mode~ active---before enabling the pixel mode. It also deactivates the pixel mode if ~buffer-face-mode~ is subsequently turned off.
+
+On a non-graphical display, ~org-indent-pixel-setup~ does nothing.
+
+#+findex: org-indent-pixel-teardown
+The function ~org-indent-pixel-teardown~ reverses the effect of ~org-indent-pixel-setup~. It removes both hooks and disables ~org-indent-pixel-mode~ in every buffer where it is currently active. This is useful if you want to unload or disable the package without restarting Emacs.
+
+* Installation
+:PROPERTIES:
+:CUSTOM_ID: h:installation
+:END:
+
+** With ~use-package~ and ~elpaca~
+:PROPERTIES:
+:CUSTOM_ID: h:use-package-elpaca
+:END:
+
+#+begin_src emacs-lisp
+(use-package org-indent-pixel
+  :ensure (:host github :repo "benthamite/org-indent-pixel")
+  :init
+  (org-indent-pixel-setup))
+#+end_src
+
+** With ~use-package~ and ~package-vc~
+:PROPERTIES:
+:CUSTOM_ID: h:use-package-package-vc
+:END:
+
+#+begin_src emacs-lisp
+(use-package org-indent-pixel
+  :vc (:url "https://github.com/benthamite/org-indent-pixel")
+  :init
+  (org-indent-pixel-setup))
+#+end_src
+
+** With ~use-package~ and ~straight~
+:PROPERTIES:
+:CUSTOM_ID: h:use-package-straight
+:END:
+
+#+begin_src emacs-lisp
+(use-package org-indent-pixel
+  :straight (:host github :repo "benthamite/org-indent-pixel")
+  :init
+  (org-indent-pixel-setup))
+#+end_src
+
+** With ~use-package~ and ~quelpa~
+:PROPERTIES:
+:CUSTOM_ID: h:use-package-quelpa
+:END:
+
+#+begin_src emacs-lisp
+(use-package org-indent-pixel
+  :quelpa (org-indent-pixel :fetcher github :repo "benthamite/org-indent-pixel")
+  :init
+  (org-indent-pixel-setup))
+#+end_src
+
+** Manual installation
+:PROPERTIES:
+:CUSTOM_ID: h:manual-installation
+:END:
+
+Clone the repository and add it to your ~load-path~:
+
+#+begin_src emacs-lisp
+(add-to-list 'load-path "/path/to/org-indent-pixel")
+(require 'org-indent-pixel)
+(org-indent-pixel-setup)
+#+end_src
+
+* Troubleshooting
+:PROPERTIES:
+:CUSTOM_ID: h:troubleshooting
+:END:
+
+** The mode refuses to activate
+:PROPERTIES:
+:CUSTOM_ID: h:mode-refuses-to-activate
+:END:
+
+~org-indent-pixel-mode~ requires a graphical display. If you see the message "org-indent-pixel-mode requires a graphical display", you are running Emacs in a terminal. The mode is not needed in terminal Emacs because all characters have the same width.
+
+If you are using ~org-indent-pixel-setup~ and the mode does not activate despite being in a GUI frame, verify that both ~org-indent-mode~ and ~buffer-face-mode~ are active in the buffer. You can check with =M-x describe-mode= or by evaluating ~(and org-indent-mode buffer-face-mode)~ in the buffer.
+
+** Indentation looks correct without this package
+:PROPERTIES:
+:CUSTOM_ID: h:indentation-looks-correct
+:END:
+
+If you use [[https://gitlab.com/jabranham/mixed-pitch][mixed-pitch]] rather than ~buffer-face-mode~ or ~variable-pitch-mode~, the indentation area stays in a fixed-pitch face and the built-in space-based prefix is already accurate ([[#h:compatibility-notes][Compatibility notes]]). You do not need this package in that case.
+
+** Indentation looks wrong after changing fonts
+:PROPERTIES:
+:CUSTOM_ID: h:wrong-after-font-change
+:END:
+
+If you change your variable-pitch font while ~org-indent-pixel-mode~ is active, the cached pixel measurements from the previous font may be stale. Toggle the mode off and back on, or run =M-x org-indent-pixel-mode= twice, to force a full reprocessing of all lines.
+
+* License
+:PROPERTIES:
+:CUSTOM_ID: h:license
+:END:
+
+=org-indent-pixel.el= is free software, distributed under the terms of the [[https://www.gnu.org/licenses/gpl-3.0.html][GNU General Public License, version 3]] or later.
+
+* Indices
+:PROPERTIES:
+:CUSTOM_ID: h:indices
+:END:
+
+** Function index
+:PROPERTIES:
+:INDEX: fn
+:CUSTOM_ID: h:function-index
+:END:
+
+** Variable index
+:PROPERTIES:
+:INDEX: vr
+:CUSTOM_ID: h:variable-index
+:END:
