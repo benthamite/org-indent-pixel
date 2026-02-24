@@ -5,7 +5,7 @@
 ;; Author: Pablo Stafforini <pablo@stafforini.com>
 ;; Maintainer: Pablo Stafforini <pablo@stafforini.com>
 ;; URL: https://github.com/benthamite/org-indent-pixel
-;; Version: 0.1.0
+;; Version: 0.1.1
 ;; Package-Requires: ((emacs "29.1") (org "9.6"))
 ;; Keywords: outlines, faces
 
@@ -51,6 +51,13 @@
   :group 'org-indent
   :prefix "org-indent-pixel-")
 
+(defvar org-indent-pixel--buffer-count 0
+  "Number of buffers with `org-indent-pixel-mode' currently active.
+Used to manage the global advice on `org-indent-set-line-properties'.")
+
+(defconst org-indent-pixel--work-buffer-name " *org-indent-pixel*"
+  "Name of the hidden work buffer used for pixel width measurement.")
+
 (defun org-indent-pixel--string-pixel-width (string)
   "Like `string-pixel-width' but with the calling buffer's face remapping.
 `string-pixel-width' uses an internal work buffer that lacks the
@@ -60,7 +67,7 @@ font of `buffer-face-mode'."
   (if (zerop (length string))
       0
     (let ((remapping face-remapping-alist))
-      (with-current-buffer (get-buffer-create " *org-indent-pixel*")
+      (with-current-buffer (get-buffer-create org-indent-pixel--work-buffer-name)
         (setq-local face-remapping-alist remapping)
         (setq line-prefix nil
               wrap-prefix nil)
@@ -68,6 +75,11 @@ font of `buffer-face-mode'."
         (delete-region (point-min) (point-max))
         (insert (propertize string 'line-prefix nil 'wrap-prefix nil))
         (car (buffer-text-pixel-size nil nil t))))))
+
+(defun org-indent-pixel--kill-work-buffer ()
+  "Kill the hidden work buffer if it exists."
+  (when-let ((buf (get-buffer org-indent-pixel--work-buffer-name)))
+    (kill-buffer buf)))
 
 (defun org-indent-pixel--fix-line (_level indentation &optional heading)
   "Fix `wrap-prefix' on the current line.
@@ -94,20 +106,27 @@ When HEADING is non-nil the line is a heading and is skipped."
                                (goto-char bol)
                                (move-to-column indentation)
                                (point)))
-                 (s (buffer-substring bol body-start))
-                 (len (length s)))
-            (when (> len 0)
-              (remove-text-properties
-               0 len '(line-prefix nil wrap-prefix nil fontified nil) s)
-              (let* ((text-px (org-indent-pixel--string-pixel-width s))
-                     (lp-px (org-indent-pixel--string-pixel-width lp))
-                     (total-px (+ lp-px text-px)))
-                (when (> total-px 0)
-                  (put-text-property
-                   bol (min next-bol (point-max))
-                   'wrap-prefix
-                   (propertize " " 'display
-                               `(space :width (,total-px)))))))))))))
+                 (reached-col (save-excursion
+                                (goto-char body-start)
+                                (current-column))))
+            ;; Only proceed if `move-to-column' actually reached the target
+            ;; column.  If the line is shorter than INDENTATION, the
+            ;; measurement would be for the wrong amount of text.
+            (when (= reached-col indentation)
+              (let* ((s (buffer-substring bol body-start))
+                     (len (length s)))
+                (when (> len 0)
+                  (remove-text-properties
+                   0 len '(line-prefix nil wrap-prefix nil fontified nil) s)
+                  (let* ((text-px (org-indent-pixel--string-pixel-width s))
+                         (lp-px (org-indent-pixel--string-pixel-width lp))
+                         (total-px (+ lp-px text-px)))
+                    (when (> total-px 0)
+                      (put-text-property
+                       bol (min next-bol (point-max))
+                       'wrap-prefix
+                       (propertize " " 'display
+                                   `(space :width (,total-px)))))))))))))))
 
 ;;;###autoload
 (define-minor-mode org-indent-pixel-mode
@@ -122,22 +141,35 @@ continuation lines align correctly in variable-pitch fonts."
           (progn
             (setq org-indent-pixel-mode nil)
             (message "org-indent-pixel-mode requires a graphical display"))
+        (cl-incf org-indent-pixel--buffer-count)
         (advice-add 'org-indent-set-line-properties
                     :after #'org-indent-pixel--fix-line)
         (when org-indent-mode
           (org-indent-add-properties (point-min) (point-max))))
-    (advice-remove 'org-indent-set-line-properties
-                   #'org-indent-pixel--fix-line)
+    (cl-decf org-indent-pixel--buffer-count)
+    (when (<= org-indent-pixel--buffer-count 0)
+      (setq org-indent-pixel--buffer-count 0)
+      (advice-remove 'org-indent-set-line-properties
+                     #'org-indent-pixel--fix-line)
+      (org-indent-pixel--kill-work-buffer))
     (when org-indent-mode
       (org-indent-add-properties (point-min) (point-max)))))
 
 (defun org-indent-pixel--maybe-activate ()
-  "Activate `org-indent-pixel-mode' when conditions are met.
-Intended for use in `org-mode-hook' and `buffer-face-mode-hook'."
-  (when (and (bound-and-true-p org-indent-mode)
-             (bound-and-true-p buffer-face-mode)
-             (not (bound-and-true-p org-indent-pixel-mode)))
-    (org-indent-pixel-mode 1)))
+  "Activate or deactivate `org-indent-pixel-mode' when conditions change.
+Intended for use in `org-mode-hook' and `buffer-face-mode-hook'.
+Activates the mode when `org-indent-mode', `buffer-face-mode', and
+`org-mode' are all active.  Deactivates the mode when `buffer-face-mode'
+is turned off."
+  (cond
+   ((and (derived-mode-p 'org-mode)
+         (bound-and-true-p org-indent-mode)
+         (bound-and-true-p buffer-face-mode)
+         (not (bound-and-true-p org-indent-pixel-mode)))
+    (org-indent-pixel-mode 1))
+   ((and (bound-and-true-p org-indent-pixel-mode)
+         (not (bound-and-true-p buffer-face-mode)))
+    (org-indent-pixel-mode -1))))
 
 ;;;###autoload
 (defun org-indent-pixel-setup ()
@@ -148,6 +180,16 @@ in all Org buffers that use both `org-indent-mode' and
   (when (display-graphic-p)
     (add-hook 'org-mode-hook #'org-indent-pixel--maybe-activate 90)
     (add-hook 'buffer-face-mode-hook #'org-indent-pixel--maybe-activate)))
+
+(defun org-indent-pixel-teardown ()
+  "Remove hooks and disable `org-indent-pixel-mode' in all buffers.
+Reverses the effect of `org-indent-pixel-setup'."
+  (remove-hook 'org-mode-hook #'org-indent-pixel--maybe-activate)
+  (remove-hook 'buffer-face-mode-hook #'org-indent-pixel--maybe-activate)
+  (dolist (buf (buffer-list))
+    (with-current-buffer buf
+      (when (bound-and-true-p org-indent-pixel-mode)
+        (org-indent-pixel-mode -1)))))
 
 (provide 'org-indent-pixel)
 ;;; org-indent-pixel.el ends here
