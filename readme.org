@@ -19,6 +19,8 @@ This manual describes the features and customization options for the Emacs Lisp 
 
 =org-indent-pixel.el= fixes a visual alignment problem that arises when using variable-pitch fonts in Org mode buffers with indentation enabled. It requires GNU Emacs 29.1 or later and Org 9.6 or later.
 
+The development repository is on [[https://github.com/benthamite/org-indent-pixel][GitHub]].
+
 ** The problem
 :PROPERTIES:
 :CUSTOM_ID: h:the-problem
