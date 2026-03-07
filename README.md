@@ -47,7 +47,7 @@ If you change your variable-pitch font while the mode is active, toggle it off a
 
 ## Documentation
 
-For a comprehensive description of all user options, commands, and functions, see the [manual](readme.org).
+For a comprehensive description of all user options, commands, and functions, see the [manual](README.org).
 
 ## License
 
