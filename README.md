@@ -4,6 +4,8 @@
 
 When `org-indent-mode` and `buffer-face-mode` (or `variable-pitch-mode`) are both active, wrapped lines in nested list items become progressively misaligned. The deeper the nesting, the worse the drift. This happens because `org-indent-mode` builds its `wrap-prefix` from fixed-width space characters, which are narrower than the average character in a variable-pitch font.
 
+![Screenshot showing before and after comparison](screenshot.png)
+
 `org-indent-pixel` fixes this by replacing the space-based `wrap-prefix` with a pixel-accurate specification. For each indented non-heading line, it measures the actual rendered width of the line content and prefix in the buffer's variable-pitch font---including any display properties set by packages like [org-modern](https://github.com/minad/org-modern)---and sets `wrap-prefix` to an exact pixel value. The result is that continuation lines align precisely with the body text above, regardless of the font in use.
 
 The package requires a graphical Emacs frame; in a terminal all characters occupy the same width, so the built-in space-based prefix is already correct. Users of [mixed-pitch](https://gitlab.com/jabranham/mixed-pitch) typically do not need this package either, since `mixed-pitch` keeps indentation in a fixed-pitch face where the space-based prefix remains accurate.
