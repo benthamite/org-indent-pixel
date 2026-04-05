@@ -17,21 +17,22 @@ The package requires a graphical Emacs frame; in a terminal all characters occup
 ### package-vc (built-in since Emacs 30)
 
 ```emacs-lisp
-(package-vc-install "https://github.com/benthamite/org-indent-pixel")
+(use-package org-indent-pixel
+  :vc (:url "https://github.com/benthamite/org-indent-pixel"))
 ```
 
 ### Elpaca
 
 ```emacs-lisp
 (use-package org-indent-pixel
-  :ensure (org-indent-pixel :host github :repo "benthamite/org-indent-pixel"))
+  :ensure (:host github :repo "benthamite/org-indent-pixel"))
 ```
 
 ### straight.el
 
 ```emacs-lisp
-(straight-use-package
- '(org-indent-pixel :type git :host github :repo "benthamite/org-indent-pixel"))
+(use-package org-indent-pixel
+  :straight (:host github :repo "benthamite/org-indent-pixel"))
 ```
 
 ## Quick start
