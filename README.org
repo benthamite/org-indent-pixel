@@ -200,6 +200,35 @@ If you use [[https://gitlab.com/jabranham/mixed-pitch][mixed-pitch]] rather than
 
 If you change your variable-pitch font while ~org-indent-pixel-mode~ is active, the cached pixel measurements from the previous font may be stale. Toggle the mode off and back on, or run =M-x org-indent-pixel-mode= twice, to force a full reprocessing of all lines.
 
+* Development
+:PROPERTIES:
+:CUSTOM_ID: h:development
+:END:
+
+** Running tests
+:PROPERTIES:
+:CUSTOM_ID: h:running-tests
+:END:
+
+The repository includes an ERT test suite in =org-indent-pixel-test.el=. To run it locally:
+
+#+begin_src shell
+make test
+#+end_src
+
+To byte-compile with warnings treated as errors:
+
+#+begin_src shell
+make compile
+#+end_src
+
+** Continuous integration
+:PROPERTIES:
+:CUSTOM_ID: h:continuous-integration
+:END:
+
+A GitHub Actions workflow runs byte-compilation and the test suite on every push and pull request to the =main= branch, against Emacs 29.4 and 30.1.
+
 * License
 :PROPERTIES:
 :CUSTOM_ID: h:license
