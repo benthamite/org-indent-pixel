@@ -50,7 +50,7 @@ If you change your variable-pitch font while the mode is active, toggle it off a
 
 ## Documentation
 
-For a comprehensive description of all user options, commands, and functions, see the [manual](README.org).
+For a comprehensive description of all user options, commands, and functions, see the [manual](https://stafforini.com/notes/org-indent-pixel/).
 
 ## License
 
