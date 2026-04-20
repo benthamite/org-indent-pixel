@@ -4,6 +4,7 @@
 @settitle org-indent-pixel: Pixel-accurate wrap-prefix for variable-pitch Org buffers
 @documentencoding UTF-8
 @documentlanguage en
+@c AUTO-GENERATED from README.org via ox-texinfo — do not edit manually.
 @c %**end of header
 
 @dircategory Emacs misc features
@@ -33,6 +34,7 @@ This manual describes the features and customization options for the Emacs Lisp 
 * Functions::
 * Installation::
 * Troubleshooting::
+* Development::
 * License::
 * Indices::
 
@@ -66,6 +68,11 @@ Troubleshooting
 * The mode refuses to activate::
 * Indentation looks correct without this package::
 * Indentation looks wrong after changing fonts::
+
+Development
+
+* Running tests::
+* Continuous integration::
 
 Indices
 
@@ -259,6 +266,34 @@ If you use @uref{https://gitlab.com/jabranham/mixed-pitch, mixed-pitch} rather t
 @section Indentation looks wrong after changing fonts
 
 If you change your variable-pitch font while @code{org-indent-pixel-mode} is active, the cached pixel measurements from the previous font may be stale. Toggle the mode off and back on, or run @samp{M-x org-indent-pixel-mode} twice, to force a full reprocessing of all lines.
+
+@node Development
+@chapter Development
+
+@menu
+* Running tests::
+* Continuous integration::
+@end menu
+
+@node Running tests
+@section Running tests
+
+The repository includes an ERT test suite in @samp{org-indent-pixel-test.el}. To run it locally:
+
+@example
+make test
+@end example
+
+To byte-compile with warnings treated as errors:
+
+@example
+make compile
+@end example
+
+@node Continuous integration
+@section Continuous integration
+
+A GitHub Actions workflow runs byte-compilation and the test suite on every push and pull request to the @samp{main} branch, against Emacs 29.4 and 30.1.
 
 @node License
 @chapter License
